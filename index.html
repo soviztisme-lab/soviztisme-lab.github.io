@@ -29,7 +29,6 @@
 </head>
 <body>
   <div class="app">
-    <!-- Left: Decks -->
     <section class="panel">
       <h2>Decks & Controls</h2>
       <div class="deck">
@@ -54,7 +53,6 @@
       </pre>
     </section>
 
-    <!-- Center: Play Area -->
     <main class="panel">
       <h2>Play Area</h2>
       <div class="row toolbar">
@@ -78,7 +76,6 @@
       </pre>
     </main>
 
-    <!-- Right: Mission and Cards preview -->
     <aside class="panel">
       <h2>ภารกิจ & ตัวอย่างการ์ด</h2>
       <div class="mission">
@@ -104,7 +101,6 @@
   <footer class="muted">Organic Quest — Prototype | มีหมู่ฟังก์ชันอย่างน้อย 6 หมู่ (Alkane/Alkene/Alkyne/Alcohol/Ketone/Carboxylic acid)</footer>
 
   <script>
-    /* ===== Data model ===== */
     const carbonDeck = [];
     for(let i=1;i<=6;i++) carbonDeck.push({type:'carbon',label:'C'+i,carbons:i,id:'C'+i});
 
@@ -130,53 +126,74 @@
       {text:'สร้างสารที่มีพันธะคู่และ 3 คาร์บอน', require:{carbons:3,functional:'alkene'},score:10}
     ];
 
-    /* ===== State ===== */
     let state = {carbonDeck:[],functionalDeck:[],eventDeck:[],playArea:[],score:0,currentMission:null,eventLog:'-'};
 
-    /* ===== Utils ===== */
     function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
     function reset(){state.carbonDeck=shuffle([...carbonDeck]);state.functionalDeck=shuffle([...functionalDeck]);state.eventDeck=shuffle([...eventDeck]);state.playArea=[];state.score=0;state.currentMission=null;state.eventLog='-';renderAll();}
 
-    /* ===== Render ===== */
-    function renderAll(){document.getElementById('carbonCount').textContent='คงเหลือ: '+state.carbonDeck.length;document.getElementById('functionalCount').textContent='คงเหลือ: '+state.functionalDeck.length;document.getElementById('eventLog').textContent='เหตุการณ์ล่าสุด: '+state.eventLog;renderPlayArea();renderSamples();renderMission();document.getElementById('score').textContent=state.score}
+    function renderAll(){
+      document.getElementById('carbonCount').textContent='คงเหลือ: '+state.carbonDeck.length;
+      document.getElementById('functionalCount').textContent='คงเหลือ: '+state.functionalDeck.length;
+      document.getElementById('eventLog').textContent='เหตุการณ์ล่าสุด: '+state.eventLog;
+      renderPlayArea();
+      renderSamples();
+      renderMission();
+      document.getElementById('score').textContent=state.score;
+    }
 
-    function renderPlayArea(){const el=document.getElementById('playArea');el.innerHTML='';if(state.playArea.length===0){el.innerHTML='<div class="muted">(ยังไม่มีการ์ด) คลิกการ์ดเพื่อวาง</div>'}else{state.playArea.forEach((c,i)=>{const div=document.createElement('div');div.className='card '+(c.type==='functional'?'functional':c.type==='carbon'?'carbon':'special')+' small';div.textContent=c.label;div.title='คลิกเพื่อลบ';div.onclick=()=>{if(confirm('ต้องการลบการ์ดนี้หรือไม่?')){state.playArea.splice(i,1);renderAll()}};el.appendChild(div)})}
-      document.getElementById('placedList').textContent=state.playArea.map(x=>x.label).join(' • ')||'-'}
+    function renderPlayArea(){
+      const el=document.getElementById('playArea');
+      el.innerHTML='';
+      if(state.playArea.length===0){el.innerHTML='<div class="muted">(ยังไม่มีการ์ด) คลิกการ์ดเพื่อวาง</div>'}else{
+        state.playArea.forEach((c,i)=>{
+          const div=document.createElement('div');
+          div.className='card '+(c.type==='functional'?'functional':c.type==='carbon'?'carbon':'special')+' small';
+          div.textContent=c.label;
+          div.title='คลิกเพื่อลบ';
+          div.onclick=()=>{if(confirm('ต้องการลบการ์ดนี้หรือไม่?')){state.playArea.splice(i,1);renderAll()}}
+          el.appendChild(div);
+        })
+      }
+      document.getElementById('placedList').textContent=state.playArea.map(x=>x.label).join(' • ')||'-';
+    }
 
-    function renderSamples(){const sf=document.getElementById('sampleFunctional');sf.innerHTML='';functionalDeck.forEach(f=>{const d=document.createElement('div');d.className='card small functional';d.textContent=f.label;sf.appendChild(d)});const sc=document.getElementById('sampleCarbon');sc.innerHTML='';for(let i=1;i<=6;i++){const d=document.createElement('div');d.className='card small carbon';d.textContent='C'+i;sc.appendChild(d)}}
+    function renderSamples(){
+      const sf=document.getElementById('sampleFunctional');sf.innerHTML='';functionalDeck.forEach(f=>{const d=document.createElement('div');d.className='card small functional';d.textContent=f.label;sf.appendChild(d)});
+      const sc=document.getElementById('sampleCarbon');sc.innerHTML='';for(let i=1;i<=6;i++){const d=document.createElement('div');d.className='card small carbon';d.textContent='C'+i;sc.appendChild(d)}
+    }
 
     function renderMission(){document.getElementById('missionText').textContent=state.currentMission?state.currentMission.text:'(ยังไม่มีภารกิจ)'}
 
-    /* ===== Actions ===== */
     function drawCarbon(){const card=state.carbonDeck.shift();if(!card){alert('ไม่มีการ์ดคาร์บอนแล้ว');return}state.playArea.push(card);renderAll()}
     function drawFunctional(){const card=state.functionalDeck.shift();if(!card){alert('ไม่มีการ์ดหมู่ฟังก์ชันแล้ว');return}state.playArea.push(card);renderAll()}
     function drawEvent(){const e=state.eventDeck.shift();if(!e){alert('ไม่มีการ์ดเหตุการณ์แล้ว');return}state.eventLog=e.label;applyEvent(e);renderAll()}
 
-    function applyEvent(e){if(e.id==='break'){// remove a random functional if exists
-        const idx=state.playArea.findIndex(x=>x.type==='functional');if(idx>=0){state.playArea.splice(idx,1);state.eventLog+=' → เอาหนึ่งหมู่ฟังก์ชันออก'}else{state.eventLog+=' → ไม่มีหมู่ให้สลาย'}}
-      if(e.id==='double'){// convert an alkane into alkene if exists
-        const f=state.playArea.find(x=>x.id==='alkane');if(f){f.id='=';f.group='alkene';f.label='C=C (Alkene)';state.eventLog+=' → เปลี่ยน alkane เป็น alkene'}else{state.eventLog+=' → ไม่มี alkane ให้เปลี่ยน'}}
-      if(e.id==='iso'){// swap positions
-        if(state.playArea.length>=2){const i=0,j=state.playArea.length-1;[state.playArea[i],state.playArea[j]]=[state.playArea[j],state.playArea[i]];state.eventLog+=' → เกิดไอโซเมอร์ (สลับลำดับ)'}else{state.eventLog+=' → ไม่มีการสลับ'}}
+    function applyEvent(e){
+      if(e.id==='break'){const idx=state.playArea.findIndex(x=>x.type==='functional');if(idx>=0){state.playArea.splice(idx,1);state.eventLog+=' → เอาหนึ่งหมู่ฟังก์ชันออก'}else{state.eventLog+=' → ไม่มีหมู่ให้สลาย'}}
+      if(e.id==='double'){const f=state.playArea.find(x=>x.id==='alkane');if(f){f.id='=';f.group='alkene';f.label='C=C (Alkene)';state.eventLog+=' → เปลี่ยน alkane เป็น alkene'}else{state.eventLog+=' → ไม่มี alkane ให้เปลี่ยน'}}
+      if(e.id==='iso'){if(state.playArea.length>=2){const i=0,j=state.playArea.length-1;[state.playArea[i],state.playArea[j]]=[state.playArea[j],state.playArea[i]];state.eventLog+=' → เกิดไอโซเมอร์ (สลับลำดับ)'}else{state.eventLog+=' → ไม่มีการสลับ'}}
     }
 
     function newMission(){state.currentMission = missions[Math.floor(Math.random()*missions.length)];renderAll()}
 
-    function checkMission(){if(!state.currentMission){alert('ยังไม่มีภารกิจ! กด เริ่มภารกิจใหม่');return}
-      // Evaluate: count carbons sum and check for required functional group
-      let totalC=0;let hasFunc=false;state.playArea.forEach(c=>{if(c.type==='carbon') totalC+=c.carbons||0;if(c.type==='functional'){if(c.group===state.currentMission.require.functional) hasFunc=true}});
-      let earned=0;let msg='';
+    function checkMission(){
+      if(!state.currentMission){alert('ยังไม่มีภารกิจ! กด เริ่มภารกิจใหม่');return}
+      let totalC=0;
+      let hasFunc=false;
+      state.playArea.forEach(c=>{if(c.type==='carbon') totalC+=c.carbons||0;if(c.type==='functional' && c.group===state.currentMission.require.functional) hasFunc=true});
+      let earned=0;
+      let msg='';
       if(totalC===state.currentMission.require.carbons && hasFunc){earned=state.currentMission.score;msg='สำเร็จตรงเงื่อนไข! ได้ '+earned+' คะแนน'}
-      else if(totalC>=state.currentMission.require.carbons && hasFunc){earned=Math.floor(state.currentMission.score/2);msg='ใกล้เคียง (carbons มากกว่า/เท่าหรือมี func) ได้ '+earned+' คะแนน'}n
-      if(!msg){msg='ไม่ผ่านเงื่อนไข'}
-      state.score+=earned;alert(msg+'\n(ปัจจุบันคะแนนรวม: '+state.score+')');
-      // after checking, auto-start new mission
-      state.currentMission=null;newMission();renderAll();}
+      else if(totalC>=state.currentMission.require.carbons && hasFunc){earned=Math.floor(state.currentMission.score/2);msg='ใกล้เคียง (carbons >= เงื่อนไข และมี func) ได้ '+earned+' คะแนน'}
+      else{msg='ไม่ผ่านเงื่อนไข'}
+      state.score+=earned;
+      alert(msg+'\nคะแนนรวม: '+state.score);
+      state.currentMission=null;
+      newMission();
+      renderAll();
+    }
 
-    // small fix: remove stray n
-
-    /* ===== Event bindings ===== */
     document.getElementById('drawCarbon').onclick=drawCarbon;
     document.getElementById('drawFunctional').onclick=drawFunctional;
     document.getElementById('drawEvent').onclick=drawEvent;
@@ -185,7 +202,6 @@
     document.getElementById('checkMission').onclick=checkMission;
     document.getElementById('undo').onclick=()=>{if(state.playArea.length){state.playArea.pop();renderAll()}else alert('ไม่มีการ์ดให้ย้อนกลับ')}
 
-    /* ===== Initialize ===== */
     reset();
   </script>
 </body>
