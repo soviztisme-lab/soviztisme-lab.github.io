@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>เกมเรียนรู้หมู่ฟังก์ชันอินทรีย์ (2D)</title>
+  <style>
+    /* Reset */
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, Roboto, 'Noto Sans', 'Segoe UI', 'Helvetica Neue', Arial}
+    #gameWrap{display:flex;flex-direction:column;height:100vh;}
+    header{background:#0b3b56;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px}
+    header h1{font-size:18px;margin:0}
+    main{flex:1;position:relative;background:linear-gradient(#eaf6ff,#fff);overflow:hidden}
+    canvas{display:block;width:100%;height:100%}
+
+    /* HUD */
+    .hud{position:absolute;left:12px;top:12px;background:rgba(255,255,255,0.9);padding:8px;border-radius:8px;backdrop-filter: blur(4px)}
+    .hud .score{font-weight:700}
+
+    /* Info box */
+    .info{position:absolute;right:12px;top:12px;width:260px;background:rgba(255,255,255,0.95);padding:10px;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,0.12)}
+    .info h3{margin:0 0 6px 0;font-size:16px}
+    .info p{margin:6px 0;font-size:14px}
+    .info .list{margin-top:8px}
+    .info .list li{font-size:13px;margin:6px 0}
+
+    /* Joystick */
+    .joystick{position:absolute;left:18px;bottom:18px;width:140px;height:140px;border-radius:50%;display:none;z-index:50;touch-action:none}
+    .joy-base{width:100%;height:100%;background:rgba(0,0,0,0.08);border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .joy-stick{width:56px;height:56px;background:rgba(11,59,86,0.9);border-radius:50%;transform:translate(0,0);touch-action:none}
+
+    /* Modal manual */
+    .modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:90%;max-width:900px;background:#fff;padding:18px;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.25);z-index:100}
+    .modal.hidden{display:none}
+    .modal h2{margin-top:0}
+    .modal pre{background:#f7f9fc;padding:10px;border-radius:6px;overflow:auto}
+    .btn{background:#0b6aa8;color:#fff;padding:8px 12px;border-radius:6px;border:none;cursor:pointer}
+
+    footer{padding:8px 12px;font-size:13px;background:#f0f6fb}
+
+    /* Responsive */
+    @media (pointer: coarse){
+      .joystick{display:block}
+      canvas{height:calc(100vh - 120px)}
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <header>
+      <h1>เกม: รวมหมู่ฟังก์ชันอินทรีย์ (2D)</h1>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button id="openManual" class="btn">คู่มือการเล่น</button>
+        <button id="resetBtn" class="btn" style="background:#2b7a2b">เริ่มใหม่</button>
+      </div>
+    </header>
+
+    <main>
+      <canvas id="gameCanvas"></canvas>
+
+      <div class="hud">
+        <div>คะแนน: <span id="score">0</span></div>
+        <div>เก็บ: <span id="collected">0</span>/<span id="total">0</span></div>
+      </div>
+
+      <div class="info" id="infoBox">
+        <h3>ข้อมูลหมู่ฟังก์ชัน</h3>
+        <p id="infoText">เก็บโมเลกุลเพื่อดูคำอธิบายหมู่ฟังก์ชัน</p>
+        <ul class="list" id="groupList"></ul>
+      </div>
+
+      <div class="joystick" id="joystick">
+        <div class="joy-base"><div class="joy-stick" id="joyStick"></div></div>
+      </div>
+
+      <div class="modal hidden" id="manual">
+        <h2>คู่มือการเล่น (ภาษาไทย)</h2>
+        <p>เป้าหมาย: เดินไปรอบแผนที่และเก็บโมเลกุลที่เป็นตัวแทนของหมู่ฟังก์ชันอินทรีย์ เพื่อเรียนรู้และสะสมคะแนน</p>
+        <h3>หมู่ฟังก์ชันที่มีในเกม (อย่างน้อย 5 หมู่):</h3>
+        <ul>
+          <li>1) แอลกอฮอล์ (–OH)</li>
+          <li>2) คาร์บอนิล — อัลดีไฮด์/คีโตน (C=O)</li>
+          <li>3) กรดคาร์บอกซิลิก (–COOH)</li>
+          <li>4) แอมีน (–NH2)</li>
+          <li>5) เอสเทอร์ (–COOR)</li>
+          <li>เพิ่มเติม: เอเธอร์, ฮาโลเจน (–Cl/–Br) เป็นต้น</li>
+        </ul>
+        <h3>การควบคุม</h3>
+        <ul>
+          <li>บนคอมพิวเตอร์: ใช้ปุ่มลูกศร (Arrow keys) หรือ W/A/S/D เพื่อเคลื่อนตัวละคร</li>
+          <li>บนมือถือ: จะปรากฎ <strong>joystick</strong> ทางมุมซ้ายล่าง กดแล้วลากเพื่อเคลื่อน</li>
+          <li>ปุ่ม R หรือปุ่ม "เริ่มใหม่" เพื่อรีสตาร์ทเกม</li>
+        </ul>
+        <h3>การเล่น</h3>
+        <ol>
+          <li>เดินไปชนกับไอคอนโมเลกุลเพื่อเก็บ</li>
+          <li>เมื่อเก็บแล้ว จะปรากฎคำอธิบายสั้นเกี่ยวกับหมู่ฟังก์ชันนั้น และเพิ่มคะแนน</li>
+          <li>บางโมเลกุลเป็น "คำถาม" — จะมีคำถามสั้น ให้ตอบ (เลือก A/B/C) เพื่อรับโบนัสคะแนน</li>
+        </ol>
+        <p>ไฟล์นี้เป็น single-file HTML/JS/CSS — สามารถอัปโหลดขึ้น GitHub Pages ได้โดยตรง (วางไฟล์เป็น index.html แล้วเปิดใน GitHub Pages)</p>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+          <button id="closeManual" class="btn">ปิด</button>
+        </div>
+      </div>
+
+    </main>
+
+    <footer>
+      พัฒนาโดย: ระบบช่วยออกแบบเกม — สามารถดาวน์โหลดไฟล์นี้แล้วอัปโหลดเป็น <code>index.html</code> บน GitHub เพื่อรันเป็น GitHub Pages
+    </footer>
+  </div>
+
+  <script>
+  // === เกม 2D แบบง่าย (single-file) ===
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize(){
+    W = canvas.width = Math.floor(canvas.clientWidth * devicePixelRatio);
+    H = canvas.height = Math.floor(canvas.clientHeight * devicePixelRatio);
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ตัวละคร
+  const player = {x:150,y:150,size:28,speed:120,color:'#0b3b56',vx:0,vy:0};
+
+  // หมู่ฟังก์ชัน (ตัวอย่างอย่างน้อย 5)
+  const functionalGroups = [
+    {id:'alcohol',name:'แอลกอฮอล์ (–OH)',desc:'หมู่ –OH พบในแอลกอฮอล์ เช่น เอทานอล',points:10,color:'#ff6b6b'},
+    {id:'carbonyl',name:'คาร์บอนิล (C=O)',desc:'หมู่ C=O พบในคีโตนและอัลดีไฮด์',points:12,color:'#ffd93d'},
+    {id:'carboxy',name:'กรดคาร์บอกซิลิก (–COOH)',desc:'หมู่ –COOH พบในกรดอินทรีย์ เช่น กรดอะซิติก',points:15,color:'#6bcB77'},
+    {id:'amine',name:'แอมีน (–NH2)',desc:'หมู่ –NH2 พบในแอมีน ให้หลักฐานเป็นเบสอ่อน',points:11,color:'#6a8cff'},
+    {id:'ester',name:'เอสเทอร์ (–COOR)',desc:'หมู่ –COOR ให้กลิ่นหอมในสารประกอบบางชนิด',points:13,color:'#c77dff'},
+    {id:'ether',name:'เอเธอร์ (R–O–R)',desc:'เอเธอร์เป็นหมู่เชื่อมระหว่างคาร์บอนกับออกซิเจน',points:9,color:'#8fd3ff'},
+    {id:'halide',name:'ฮาโลเจน (–Cl/–Br)',desc:'หมู่ฮาโลเจนมักพบในสารอินทรีย์ที่มีปฏิกิริยาสูง',points:8,color:'#ff8c42'}
+  ];
+
+  // วางไอเท็มแบบสุ่ม
+  let items = [];
+  function spawnItems(count=10){
+    items = [];
+    for(let i=0;i<count;i++){
+      const g = functionalGroups[Math.floor(Math.random()*functionalGroups.length)];
+      const item = {
+        id: g.id+'_'+i,
+        gx: Math.random()*(canvas.clientWidth-40)+20,
+        gy: Math.random()*(canvas.clientHeight-140)+60,
+        size:20,
+        group:g,
+        isQuestion: Math.random() < 0.25 // 25% จะเป็นคำถาม
+      };
+      items.push(item);
+    }
+    document.getElementById('total').textContent = items.length;
+  }
+
+  spawnItems(12);
+
+  // สถานะเกม
+  let score = 0; let collected = 0;
+  function updateHUD(){
+    document.getElementById('score').textContent = score;
+    document.getElementById('collected').textContent = collected;
+    // สร้างรายการหมู่ฟังก์ชันในกล่อง info
+    const list = document.getElementById('groupList'); list.innerHTML='';
+    functionalGroups.forEach(g => {
+      const li = document.createElement('li'); li.textContent = g.name + ' — ' + g.desc;
+      list.appendChild(li);
+    });
+  }
+  updateHUD();
+
+  // อินพุต: คีย์บอร์ด
+  const keys = {};
+  window.addEventListener('keydown', e=>{ keys[e.key]=true; if(e.key==='r' || e.key==='R') resetGame(); });
+  window.addEventListener('keyup', e=>{ keys[e.key]=false });
+
+  // จอยสติ๊กบนมือถือ
+  const joystick = document.getElementById('joystick');
+  const joyStick = document.getElementById('joyStick');
+  let touchId = null; let joyCenter = {x:0,y:0};
+  function showJoystick(){ if(window.matchMedia('(pointer:coarse)').matches) joystick.style.display = 'block'; }
+  showJoystick();
+
+  joystick.addEventListener('pointerdown', (e)=>{
+    joystick.setPointerCapture(e.pointerId);
+    touchId = e.pointerId;
+    const rect = joystick.getBoundingClientRect();
+    joyCenter = {x: rect.left + rect.width/2, y: rect.top + rect.height/2};
+    joyStick.style.transition = '0s';
+  });
+  joystick.addEventListener('pointermove', (e)=>{
+    if(e.pointerId !== touchId) return;
+    const dx = e.clientX - joyCenter.x; const dy = e.clientY - joyCenter.y;
+    const max = 44; let nx = dx; let ny = dy;
+    const dist = Math.hypot(dx,dy);
+    if(dist > max){ nx = dx/dist*max; ny = dy/dist*max; }
+    joyStick.style.transform = `translate(${nx}px, ${ny}px)`;
+    // แปลงเป็นความเร็ว
+    player.vx = (nx / max) * player.speed;
+    player.vy = (ny / max) * player.speed;
+  });
+  joystick.addEventListener('pointerup', (e)=>{
+    if(e.pointerId !== touchId) return;
+    joystick.releasePointerCapture(e.pointerId);
+    touchId = null; joyStick.style.transition = '0.15s'; joyStick.style.transform = 'translate(0,0)'; player.vx=0; player.vy=0;
+  });
+
+  // การชนและเก็บ
+  function checkCollect(){
+    for(let i=items.length-1;i>=0;i--){
+      const it = items[i];
+      const dx = (player.x - it.gx); const dy = (player.y - it.gy);
+      const dist = Math.hypot(dx,dy);
+      if(dist < (player.size + it.size)){
+        // เก็บ
+        collected++;
+        score += it.group.points;
+        // คำถามแบบง่ายถ้ามี
+        if(it.isQuestion){
+          const correct = askQuestion(it.group);
+          if(correct) score += 8; else score -= 4;
+        } else {
+          showInfo(it.group);
+        }
+        items.splice(i,1);
+        updateHUD();
+      }
+    }
+  }
+
+  // ฟังก์ชันโชว์ข้อมูล
+  function showInfo(group){
+    const box = document.getElementById('infoText');
+    box.textContent = `${group.name}: ${group.desc} (ให้คะแนน ${group.points})`;
+  }
+
+  // ฟังก์ชันคำถามแบบ modal แบบง่าย
+  function askQuestion(group){
+    const q = {
+      question: `หมู่ ${group.name} มีลักษณะเด่นใด?`,
+      choices: [group.desc, 'ไม่มีออกซิเจน', 'เป็นเกลือโลหะ'],
+      answerIndex: 0
+    };
+    return new Promise(resolve => {
+      // สร้าง modal ชั่วคราว
+      const m = document.createElement('div'); m.style.position='fixed'; m.style.left=0; m.style.top=0; m.style.right=0; m.style.bottom=0; m.style.background='rgba(0,0,0,0.5)'; m.style.display='flex'; m.style.alignItems='center'; m.style.justifyContent='center'; m.style.zIndex=999;
+      const card = document.createElement('div'); card.style.background='#fff'; card.style.padding='14px'; card.style.borderRadius='10px'; card.style.maxWidth='420px'; card.style.width='90%';
+      const h = document.createElement('h3'); h.textContent = 'คำถาม'; card.appendChild(h);
+      const pq = document.createElement('p'); pq.textContent = q.question; card.appendChild(pq);
+      q.choices.forEach((c,idx)=>{
+        const btn = document.createElement('button'); btn.textContent = c; btn.style.display='block'; btn.style.width='100%'; btn.style.marginTop='8px'; btn.className='btn';
+        btn.onclick = ()=>{ document.body.removeChild(m); resolve(idx===q.answerIndex); };
+        card.appendChild(btn);
+      });
+      m.appendChild(card); document.body.appendChild(m);
+    });
+  }
+
+  // เปลี่ยน askQuestion ให้ทำงานแบบ synchronous เล็กน้อย (เนื่องจากเรต้องการให้เก็บแล้วให้ผลทันที)
+  async function askQuestionSync(group){
+    const correct = await askQuestion(group);
+    const infoBox = document.getElementById('infoText');
+    if(correct){ infoBox.textContent = 'ตอบถูก! ได้โบนัส +8 คะแนน'; } else { infoBox.textContent = 'ตอบผิด -4 คะแนน'; }
+    return correct;
+  }
+
+  // เปลี่ยน askQuestion caller ให้รองรับ Promise
+  async function checkCollectAsync(){
+    for(let i=items.length-1;i>=0;i--){
+      const it = items[i];
+      const dx = (player.x - it.gx); const dy = (player.y - it.gy);
+      const dist = Math.hypot(dx,dy);
+      if(dist < (player.size + it.size)){
+        collected++;
+        score += it.group.points;
+        if(it.isQuestion){
+          const correct = await askQuestionSync(it.group);
+          if(correct) score += 8; else score -= 4;
+        } else {
+          showInfo(it.group);
+        }
+        items.splice(i,1);
+        updateHUD();
+      }
+    }
+  }
+
+  // รีเซ็ตเกม
+  function resetGame(){ score=0; collected=0; spawnItems(12); player.x=150; player.y=150; updateHUD(); }
+  document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+  // Manual modal
+  document.getElementById('openManual').addEventListener('click', ()=>{ document.getElementById('manual').classList.remove('hidden'); });
+  document.getElementById('closeManual').addEventListener('click', ()=>{ document.getElementById('manual').classList.add('hidden'); });
+
+  // Loop
+  let last = performance.now();
+  async function loop(now){
+    const dt = (now - last)/1000; last = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  async function update(dt){
+    // คีย์บอร์ด movement
+    let movex = 0, movey = 0;
+    if(keys['ArrowLeft']||keys['a']||keys['A']) movex -= 1;
+    if(keys['ArrowRight']||keys['d']||keys['D']) movex += 1;
+    if(keys['ArrowUp']||keys['w']||keys['W']) movey -= 1;
+    if(keys['ArrowDown']||keys['s']||keys['S']) movey += 1;
+    if(movex !== 0 || movey !== 0){
+      const len = Math.hypot(movex,movey) || 1;
+      player.vx = (movex/len) * player.speed;
+      player.vy = (movey/len) * player.speed;
+    } else {
+      // ถ้าไม่มีคีย์บอร์ด ให้ vx/vy มาจาก joystick (ถูกตั้งไว้บน pointermove)
+      // ถ้าไม่มี joystick การ drag จะรีเซ็ตเป็น 0
+      // player.vx, player.vy ยังคงค่าเดิม
+      if(!touchId){ player.vx = 0; player.vy = 0; }
+    }
+
+    // อัปเดตตำแหน่ง
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+    // ขอบเขต
+    player.x = Math.max(player.size, Math.min(canvas.clientWidth - player.size, player.x));
+    player.y = Math.max(player.size, Math.min(canvas.clientHeight - player.size, player.y));
+
+    // การชน
+    await checkCollectAsync();
+  }
+
+  function render(){
+    // เคลียร์
+    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    // พื้นหลังตารางง่ายๆ
+    const grid = 40;
+    ctx.strokeStyle = 'rgba(0,0,0,0.03)'; ctx.lineWidth = 1;
+    for(let x=0;x<canvas.clientWidth;x+=grid){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.clientHeight); ctx.stroke(); }
+    for(let y=0;y<canvas.clientHeight;y+=grid){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.clientWidth,y); ctx.stroke(); }
+
+    // วาด items
+    items.forEach(it=>{
+      ctx.beginPath(); ctx.fillStyle = it.group.color; ctx.arc(it.gx, it.gy, it.size,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#000'; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.fillText(shortName(it.group.id), it.gx, it.gy+4);
+      if(it.isQuestion){ ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=2; ctx.beginPath(); ctx.rect(it.gx-it.size-4,it.gy-it.size-4,it.size*2+8,it.size*2+8); ctx.stroke(); }
+    });
+
+    // วาด player
+    ctx.beginPath(); ctx.fillStyle = player.color; ctx.arc(player.x, player.y, player.size,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='12px bold sans-serif'; ctx.textAlign='center'; ctx.fillText('You', player.x, player.y+4);
+  }
+
+  function shortName(id){
+    switch(id){
+      case 'alcohol': return 'OH';
+      case 'carbonyl': return 'C=O';
+      case 'carboxy': return 'COOH';
+      case 'amine': return 'NH2';
+      case 'ester': return 'RCOOR';
+      case 'ether': return 'R-O-R';
+      case 'halide': return 'Cl/Br';
+      default: return id.slice(0,3);
+    }
+  }
+
+  requestAnimationFrame(loop);
+
+  // ปรับ canvas ให้ใช้ขนาดของ element
+  function fitCanvasToParent(){
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    resize();
+  }
+  fitCanvasToParent();
+
+  // เมนูเพื่อดาวน์โหลดเป็นไฟล์ (สำหรับอัปโหลดไป GitHub)
+  // (ไม่จำเป็น แต่ช่วยให้ผู้ใช้ดาวน์โหลดไฟล์ได้ง่าย)
+  function downloadFile(){
+    const blob = new Blob([document.documentElement.outerHTML],{type:'text/html'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'index.html'; a.click();
+  }
+
+  // อนุญาตการเรียกใช้ askQuestion แบบ synchronous: กำหนดใหม่เป็นเวอร์ชันที่รอ Promise ให้เสร็จ
+  async function askQuestionSync(group){
+    const correct = await askQuestion(group);
+    const infoBox = document.getElementById('infoText');
+    if(correct){ infoBox.textContent = 'ตอบถูก! ได้โบนัส +8 คะแนน'; } else { infoBox.textContent = 'ตอบผิด -4 คะแนน'; }
+    return correct;
+  }
+
+  // ทำให้การเก็บใช้เวอร์ชันที่รองรับ Promise
+  async function checkCollectAsync(){
+    for(let i=items.length-1;i>=0;i--){
+      const it = items[i];
+      const dx = (player.x - it.gx); const dy = (player.y - it.gy);
+      const dist = Math.hypot(dx,dy);
+      if(dist < (player.size + it.size)){
+        collected++;
+        score += it.group.points;
+        if(it.isQuestion){
+          const correct = await askQuestionSync(it.group);
+          if(correct) score += 8; else score -= 4;
+        } else {
+          showInfo(it.group);
+        }
+        items.splice(i,1);
+        updateHUD();
+      }
+    }
+  }
+
+  // เรียกใช้อีกครั้งเพื่อให้แน่ใจ
+  updateHUD();
+
+  // ช่วยแนะนำการอัปโหลดขึ้น GitHub (console log)
+  console.log('เพื่ออัปโหลด: บันทึกไฟล์นี้เป็น index.html แล้ว push ขึ้น GitHub repository เช่นใช้ GitHub Pages')
+  </script>
+</body>
+</html>
